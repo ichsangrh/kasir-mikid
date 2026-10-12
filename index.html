@@ -1,0 +1,1081 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kasir Restoran - MikiD Restoran POS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body { background-color: #f8f9fa; }
+        .navbar-brand { font-weight: 900; letter-spacing: 1px; }
+        .menu-card:hover { transform: translateY(-3px); box-shadow: 0 .5rem 1rem rgba(0,0,0,.15)!important; }
+        .payment-tab { cursor: pointer; transition: 0.2s; border: 2px solid #dee2e6; }
+        .payment-tab:hover { border-color: #da291c; background-color: #fff5f5; }
+    </style>
+</head>
+<body onload="cekSesiDanInit()">
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-dark bg-danger shadow-sm py-3">
+        <div class="container-fluid px-4">
+            <span class="navbar-brand fs-4"><i class="bi bi-egg-fried"></i> MIKI-D POS & CASHIER</span>
+            <div class="d-flex align-items-center gap-2">
+                <span id="user-badge" class="badge bg-light text-dark px-3 py-2 fw-bold"></span>
+                <a href="dapur.html" target="_blank" class="btn btn-warning text-dark fw-bold shadow-sm">
+                    <i class="bi bi-display"></i> Monitor Dapur
+                </a>
+                
+                <!-- Menu Riwayat (Muncul untuk Admin & Kasir) -->
+                <a href="riwayat.html" class="btn btn-dark fw-bold">
+                    <i class="bi bi-clock-history"></i> Riwayat & Performa
+                </a>
+
+                <!-- Setting Admin (HANYA MUNCUL UNTUK ADMIN) -->
+                <button id="btn-setting" class="btn btn-dark fw-bold" style="display: none;" data-bs-toggle="modal" data-bs-target="#settingModal">
+                    <i class="bi bi-gear"></i> Setting Admin
+                </button>
+
+                <!-- Kelola Produk (HANYA MUNCUL UNTUK ADMIN) -->
+                <button id="btn-kelola-produk" class="btn btn-warning text-dark fw-bold" style="display: none;" data-bs-toggle="modal" data-bs-target="#produkModal">
+                    <i class="bi bi-box-seam"></i> Kelola Produk
+                </button>
+
+                <button class="btn btn-outline-light btn-sm fw-bold" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-fluid px-4 my-4">
+        <div class="row">
+            <!-- Kolom Menu -->
+            <div class="col-lg-7 mb-4">
+                <div class="card shadow-sm border-0 rounded-4 p-3 bg-white">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="fw-bold mb-0 text-dark">Daftar Menu</h4>
+                        <div class="input-group w-50">
+                            <span class="input-group-text bg-light border-0"><i class="bi bi-search"></i></span>
+                            <input type="text" id="search-menu" class="form-control bg-light border-0" placeholder="Cari menu...">
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2 overflow-auto pb-2 mb-3">
+                        <button class="btn btn-danger btn-sm rounded-pill px-3 filter-btn active" onclick="filterKategori('Semua', this)">Semua</button>
+                        <button class="btn btn-outline-danger btn-sm rounded-pill px-3 filter-btn" onclick="filterKategori('Paket Hemat', this)">Paket Hemat</button>
+                        <button class="btn btn-outline-danger btn-sm rounded-pill px-3 filter-btn" onclick="filterKategori('Burger', this)">Burger</button>
+                        <button class="btn btn-outline-danger btn-sm rounded-pill px-3 filter-btn" onclick="filterKategori('Sides', this)">Sides</button>
+                        <button class="btn btn-outline-danger btn-sm rounded-pill px-3 filter-btn" onclick="filterKategori('Dessert', this)">Dessert</button>
+                        <button class="btn btn-outline-danger btn-sm rounded-pill px-3 filter-btn" onclick="filterKategori('Minuman', this)">Minuman</button>
+                    </div>
+
+                    <div class="row g-3 overflow-auto" id="menu-list" style="max-height: 65vh;"></div>
+                </div>
+            </div>
+
+            <!-- Kolom Keranjang -->
+            <div class="col-lg-5">
+                <div class="card shadow-sm border-0 rounded-4 p-3 bg-white">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h4 class="fw-bold mb-0 text-dark">Pesanan Pelanggan</h4>
+                        <span class="badge bg-danger fs-6" id="item-count">0 Item</span>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-7">
+                            <label class="form-label small fw-bold text-muted">Nama Pelanggan / No. Meja</label>
+                            <input type="text" id="customer-name" class="form-control bg-light" placeholder="Cth: Budi / Meja 04" required>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label small fw-bold text-muted">Tipe Pesanan</label>
+                            <select id="order-type" class="form-select bg-light">
+                                <option value="Dine In">Dine In (Makan Sini)</option>
+                                <option value="Take Away">Take Away (Bungkus)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <hr class="text-muted">
+                    <div id="cart-items" style="height: 32vh; overflow-y: auto;" class="pe-1">
+                        <p class="text-muted text-center my-4">Belum ada item dipilih.</p>
+                    </div>
+                    <hr class="text-muted">
+
+                    <div class="small mb-3">
+                        <div class="d-flex justify-content-between text-muted mb-1">
+                            <span>Subtotal</span>
+                            <span id="subtotal">Rp 0</span>
+                        </div>
+                        <div class="d-flex justify-content-between text-muted mb-1">
+                            <span>PB1 (Pajak 10%)</span>
+                            <span id="tax">Rp 0</span>
+                        </div>
+                        <div class="d-flex justify-content-between fs-5 fw-bold text-dark mt-2 pt-2 border-top">
+                            <span>Total Pembayaran</span>
+                            <span id="cart-total" class="text-danger">Rp 0</span>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-danger w-100 py-3 fw-bold fs-5 shadow-sm rounded-3" onclick="bukaModalPembayaran()">
+                        <i class="bi bi-credit-card-2-front"></i> Lanjut Pembayaran
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL SETTING ADMIN (Hanya untuk Admin) -->
+    <div class="modal fade" id="settingModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content rounded-4 border-0">
+                <div class="modal-header bg-dark text-white rounded-top-4">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-gear-fill"></i> Pengaturan Sistem Admin</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <h6 class="fw-bold text-danger mb-3">➕ Tambah Akun Kasir Baru</h6>
+                    <form onsubmit="tambahAkunKasir(event)">
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold">Nama Kasir</label>
+                            <input type="text" id="new-name" class="form-control" placeholder="Cth: Siti Kasir" required>
+                        </div>
+                        <div class="mb-2">
+                            <label class="form-label small fw-bold">Username</label>
+                            <input type="text" id="new-username" class="form-control" placeholder="Cth: siti123" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label small fw-bold">Password</label>
+                            <input type="password" id="new-password" class="form-control" placeholder="Password kasir" required>
+                        </div>
+                        <button type="submit" class="btn btn-danger w-100 fw-bold mb-4">Simpan Akun Kasir Baru</button>
+                    </form>
+
+                    <hr>
+
+                    <!-- ================= DAFTAR AKUN TERDAFTAR (BARU) ================= -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold text-danger mb-0">👥 Daftar Akun Terdaftar</h6>
+                        <span class="badge bg-light text-dark border" id="jumlah-akun-badge">0 Akun</span>
+                    </div>
+                    <div class="border rounded-3 mb-4" style="max-height: 260px; overflow-y: auto;">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>Nama</th>
+                                    <th>Username</th>
+                                    <th>Password</th>
+                                    <th>Role</th>
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="daftar-akun-body">
+                                <!-- Diisi otomatis oleh JS: renderDaftarAkun() -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <!-- ================= END DAFTAR AKUN TERDAFTAR ================= -->
+
+                    <hr>
+
+                    <h6 class="fw-bold text-danger mb-3">🗑️ Manajemen Data Transaksi</h6>
+                    <button class="btn btn-outline-danger w-100 fw-bold py-2" onclick="hapusSemuaRiwayat()">
+                        <i class="bi bi-trash"></i> Hapus Seluruh Riwayat Transaksi
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL KELOLA PRODUK (Hanya untuk Admin) -->
+    <div class="modal fade" id="produkModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+            <div class="modal-content rounded-4 border-0">
+                <div class="modal-header bg-dark text-white rounded-top-4">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-box-seam"></i> Kelola Produk / Menu</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+
+                    <ul class="nav nav-pills mb-4 gap-2" role="tablist">
+                        <li class="nav-item">
+                            <button class="nav-link active fw-bold" data-bs-toggle="pill" data-bs-target="#tab-produk" type="button"><i class="bi bi-box-seam"></i> Produk / Menu</button>
+                        </li>
+                        <li class="nav-item">
+                            <button class="nav-link fw-bold" data-bs-toggle="pill" data-bs-target="#tab-bahan" type="button"><i class="bi bi-basket3"></i> Inventori Bahan Baku</button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content">
+                    <div class="tab-pane fade show active" id="tab-produk">
+
+                    <!-- ===== FORM TAMBAH / EDIT PRODUK ===== -->
+                    <h6 id="form-produk-judul" class="fw-bold text-danger mb-3">➕ Tambah Produk Baru</h6>
+                    <form id="form-tambah-produk" onsubmit="simpanProduk(event)">
+                        <div class="row g-2">
+                            <div class="col-md-7">
+                                <label class="form-label small fw-bold">Nama Produk</label>
+                                <input type="text" id="produk-nama" class="form-control" placeholder="Cth: Spicy Chicken Burger" required>
+                            </div>
+                            <div class="col-md-5">
+                                <label class="form-label small fw-bold">Kategori</label>
+                                <select id="produk-kategori" class="form-select" required>
+                                    <option value="Paket Hemat">Paket Hemat</option>
+                                    <option value="Burger">Burger</option>
+                                    <option value="Sides">Sides</option>
+                                    <option value="Dessert">Dessert</option>
+                                    <option value="Minuman">Minuman</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Harga (Rp)</label>
+                                <input type="number" id="produk-harga" class="form-control" placeholder="Cth: 35000" min="0" required>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Status Stok</label>
+                                <select id="produk-status" class="form-select">
+                                    <option value="tersedia">Tersedia</option>
+                                    <option value="kosong">Kosong / Sold</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label small fw-bold">Emoji (jika tanpa upload gambar)</label>
+                                <input type="text" id="produk-emoji" class="form-control" placeholder="Cth: 🍔" maxlength="4">
+                            </div>
+                            <div class="col-md-8">
+                                <label class="form-label small fw-bold">Upload Gambar Produk (opsional, menggantikan emoji)</label>
+                                <input type="file" id="produk-gambar-file" class="form-control" accept="image/*" onchange="previewGambarProduk(event)">
+                            </div>
+                            <div class="col-md-4 d-flex align-items-end">
+                                <img id="preview-gambar-produk" src="" style="display:none; width:70px; height:70px; object-fit:cover; border-radius:10px; border:1px solid #dee2e6;">
+                            </div>
+
+                            <!-- Resep / komposisi bahan baku per 1 porsi -->
+                            <div class="col-12">
+                                <div class="border rounded-3 p-3 bg-light">
+                                    <label class="form-label small fw-bold mb-2"><i class="bi bi-journal-text"></i> Resep / Bahan Baku per 1 Porsi <span class="text-muted fw-normal">(opsional, stok otomatis berkurang saat produk terjual)</span></label>
+                                    <div class="row g-2 align-items-end">
+                                        <div class="col-md-6">
+                                            <select id="resep-bahan-select" class="form-select form-select-sm"></select>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <div class="input-group input-group-sm">
+                                                <input type="number" id="resep-qty-input" class="form-control" placeholder="Jumlah" min="0" step="any">
+                                                <span class="input-group-text" id="resep-satuan-label">-</span>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <button type="button" class="btn btn-sm btn-outline-danger w-100 fw-bold" onclick="tambahBahanKeResep()"><i class="bi bi-plus-circle"></i> Tambah Bahan</button>
+                                        </div>
+                                    </div>
+                                    <div id="resep-list" class="mt-2"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 mt-3">
+                            <button type="submit" id="btn-simpan-produk" class="btn btn-danger fw-bold flex-grow-1">Simpan Produk</button>
+                            <button type="button" id="btn-batal-edit" class="btn btn-outline-secondary fw-bold" style="display:none;" onclick="resetFormProduk()">Batal Edit</button>
+                        </div>
+                    </form>
+
+                    <hr class="my-4">
+
+                    <!-- ===== TABEL DAFTAR PRODUK ===== -->
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold text-danger mb-0">📋 Daftar Produk</h6>
+                        <span class="badge bg-light text-dark border" id="jumlah-produk-badge">0 Produk</span>
+                    </div>
+                    <div class="border rounded-3" style="max-height: 320px; overflow-y: auto;">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th>Gambar</th>
+                                    <th>Nama Produk</th>
+                                    <th>Kategori</th>
+                                    <th>Harga</th>
+                                    <th>Status</th>
+                                    <th class="text-center">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tabel-produk-body">
+                                <!-- Diisi otomatis oleh JS: renderTabelProduk() -->
+                            </tbody>
+                        </table>
+                    </div>
+                    </div><!-- /tab-produk -->
+
+                    <!-- ================= TAB INVENTORI BAHAN BAKU ================= -->
+                    <div class="tab-pane fade" id="tab-bahan">
+
+                        <h6 id="form-bahan-judul" class="fw-bold text-danger mb-3">➕ Tambah Bahan Baku</h6>
+                        <form id="form-bahan" onsubmit="simpanBahan(event)">
+                            <div class="row g-2">
+                                <div class="col-md-5">
+                                    <label class="form-label small fw-bold">Nama Bahan</label>
+                                    <input type="text" id="bahan-nama" class="form-control" placeholder="Cth: Ayam Potong" required>
+                                </div>
+                                <div class="col-md-3">
+                                    <label class="form-label small fw-bold">Satuan</label>
+                                    <input type="text" id="bahan-satuan" class="form-control" placeholder="Cth: pcs / gram / ml" list="daftar-satuan" required>
+                                    <datalist id="daftar-satuan">
+                                        <option value="pcs"><option value="gram"><option value="kg"><option value="ml"><option value="liter"><option value="lembar"><option value="bungkus">
+                                    </datalist>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small fw-bold" id="bahan-stok-label">Stok Awal</label>
+                                    <input type="number" id="bahan-stok" class="form-control" min="0" step="any" placeholder="0" required>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label small fw-bold">Stok Minimum</label>
+                                    <input type="number" id="bahan-stok-min" class="form-control" min="0" step="any" placeholder="0" title="Peringatan muncul jika stok &le; angka ini">
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 mt-3">
+                                <button type="submit" id="btn-simpan-bahan" class="btn btn-danger fw-bold flex-grow-1">Simpan Bahan Baku</button>
+                                <button type="button" id="btn-batal-bahan" class="btn btn-outline-secondary fw-bold" style="display:none;" onclick="resetFormBahan()">Batal Edit</button>
+                            </div>
+                        </form>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-danger mb-0">📦 Daftar Stok Bahan Baku</h6>
+                            <div class="d-flex align-items-center gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-danger fw-bold" onclick="muatBahanDariMenu()" title="Tambahkan bahan & resep default sesuai menu yang ada">
+                                    <i class="bi bi-magic"></i> Isi Otomatis dari Menu
+                                </button>
+                                <span class="badge bg-light text-dark border" id="jumlah-bahan-badge">0 Bahan</span>
+                            </div>
+                        </div>
+                        <div class="border rounded-3" style="max-height: 300px; overflow-y: auto;">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th>Nama Bahan</th>
+                                        <th class="text-end">Stok</th>
+                                        <th class="text-end">Min.</th>
+                                        <th>Status</th>
+                                        <th class="text-center">Aksi</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabel-bahan-body"></tbody>
+                            </table>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="fw-bold text-danger mb-0">🧾 Riwayat Pergerakan Stok</h6>
+                            <button type="button" class="btn btn-sm btn-outline-secondary" onclick="hapusLogStok()"><i class="bi bi-trash"></i> Bersihkan Log</button>
+                        </div>
+                        <div class="border rounded-3" style="max-height: 240px; overflow-y: auto;">
+                            <table class="table table-sm align-middle mb-0 small">
+                                <thead class="table-light sticky-top">
+                                    <tr><th>Waktu</th><th>Bahan</th><th>Jenis</th><th class="text-end">Jumlah</th><th class="text-end">Stok Akhir</th><th>Keterangan</th></tr>
+                                </thead>
+                                <tbody id="tabel-log-body"></tbody>
+                            </table>
+                        </div>
+                    </div><!-- /tab-bahan -->
+                    </div><!-- /tab-content -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL PEMBAYARAN -->
+    <div class="modal fade" id="paymentModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content rounded-4 border-0 shadow-lg">
+                <div class="modal-header bg-danger text-white rounded-top-4">
+                    <h5 class="modal-title fw-bold"><i class="bi bi-wallet2"></i> Pilih Metode Pembayaran</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="text-center mb-4">
+                        <span class="text-muted small">Total Tagihan</span>
+                        <h2 class="fw-bold text-danger" id="pay-total">Rp 0</h2>
+                    </div>
+
+                    <div class="row g-3 mb-4">
+                        <div class="col-md-3 col-6">
+                            <div class="card payment-tab p-3 text-center rounded-3 h-100" onclick="pilihMetode('Tunai')">
+                                <i class="bi bi-cash-stack fs-1 text-success mb-2"></i>
+                                <h6 class="fw-bold mb-0">Tunai (Cash)</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="card payment-tab p-3 text-center rounded-3 h-100" onclick="pilihMetode('QRIS')">
+                                <i class="bi bi-qr-code fs-1 text-primary mb-2"></i>
+                                <h6 class="fw-bold mb-0">QRIS (All Apps)</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="card payment-tab p-3 text-center rounded-3 h-100" onclick="pilihMetode('Debit/Credit')">
+                                <i class="bi bi-credit-card fs-1 text-warning mb-2"></i>
+                                <h6 class="fw-bold mb-0">Kartu Debit/Kredit</h6>
+                            </div>
+                        </div>
+                        <div class="col-md-3 col-6">
+                            <div class="card payment-tab p-3 text-center rounded-3 h-100" onclick="pilihMetode('E-Wallet')">
+                                <i class="bi bi-phone fs-1 text-info mb-2"></i>
+                                <h6 class="fw-bold mb-0">E-Wallet</h6>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="form-tunai" class="p-3 bg-light rounded-3 mb-3" style="display: none;">
+                        <label class="form-label fw-bold small">Masukkan Nominal Uang Tunai:</label>
+                        <input type="number" id="bayar-tunai-input" class="form-control form-control-lg mb-2" placeholder="Cth: 100000" oninput="hitungKembalian()">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <span class="fw-bold text-secondary">Uang Kembalian:</span>
+                            <h4 id="kembalian-display" class="fw-bold text-success mb-0">Rp 0</h4>
+                        </div>
+                    </div>
+
+                    <div id="form-qris" class="text-center p-3 bg-light rounded-3 mb-3" style="display: none;">
+                        <h6 class="fw-bold mb-2">Scan QRIS Berikut:</h6>
+                        <div class="bg-white p-3 d-inline-block rounded-3 border">
+                            <div class="display-1 py-2">📷<br><span class="fs-6 fw-bold text-muted">[ MOCK QRIS ]</span></div>
+                        </div>
+                    </div>
+
+                    <div id="form-debit" class="text-center p-3 bg-light rounded-3 mb-3" style="display: none;">
+                        <i class="bi bi-wifi fs-1 text-secondary mb-2"></i>
+                        <h6 class="fw-bold">Gesek atau Tap Kartu / E-Wallet pada Mesin EDC</h6>
+                    </div>
+                </div>
+                <div class="modal-footer bg-light rounded-bottom-4">
+                    <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">Batal</button>
+                    <button type="button" class="btn btn-danger px-5 fw-bold" onclick="prosesTransaksiFinal()">Selesaikan Pembayaran 🚀</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="app.js"></script>
+    <script>
+        function cekSesiDanInit() {
+            const user = JSON.parse(localStorage.getItem('currentUser'));
+            if (!user) {
+                alert('Silakan login terlebih dahulu!');
+                window.location.href = 'login.html';
+                return;
+            }
+            document.getElementById('user-badge').innerText = `${user.name} (${user.role.toUpperCase()})`;
+            
+            // Hanya tampilkan tombol setting admin & kelola produk jika role adalah admin
+            if (user.role === 'admin') {
+                document.getElementById('btn-setting').style.display = 'inline-block';
+                document.getElementById('btn-kelola-produk').style.display = 'inline-block';
+            } else {
+                document.getElementById('btn-setting').style.display = 'none';
+                document.getElementById('btn-kelola-produk').style.display = 'none';
+            }
+
+            initKasir();
+
+            // Muat ulang daftar akun setiap kali modal Setting Admin dibuka
+            const settingModalEl = document.getElementById('settingModal');
+            if (settingModalEl) {
+                settingModalEl.addEventListener('show.bs.modal', renderDaftarAkun);
+            }
+
+            // Reset form & muat ulang tabel produk setiap kali modal Kelola Produk dibuka
+            const produkModalEl = document.getElementById('produkModal');
+            if (produkModalEl) {
+                produkModalEl.addEventListener('show.bs.modal', function () {
+                    resetFormProduk();
+                    resetFormBahan();
+                    renderTabelProduk();
+                    renderTabelBahan();
+                    renderLogStok();
+                });
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            window.location.href = 'login.html';
+        }
+
+        function tambahAkunKasir(e) {
+            e.preventDefault();
+            const name = document.getElementById('new-name').value;
+            const username = document.getElementById('new-username').value;
+            const password = document.getElementById('new-password').value;
+
+            let users = JSON.parse(localStorage.getItem('posUsers')) || [];
+            if(users.some(u => u.username === username)) {
+                alert('Username sudah digunakan!');
+                return;
+            }
+
+            users.push({ username, password, role: 'kasir', name });
+            localStorage.setItem('posUsers', JSON.stringify(users));
+            alert('Akun kasir berhasil ditambahkan!');
+            document.getElementById('new-name').value = '';
+            document.getElementById('new-username').value = '';
+            document.getElementById('new-password').value = '';
+
+            renderDaftarAkun(); // refresh daftar akun setelah menambah
+        }
+
+        // ================= FITUR BARU: DAFTAR & HAPUS AKUN =================
+
+        // Menampilkan seluruh akun (Admin & Kasir) yang tersimpan di localStorage
+        function renderDaftarAkun() {
+            const tbody = document.getElementById('daftar-akun-body');
+            const badge = document.getElementById('jumlah-akun-badge');
+            if (!tbody) return;
+
+            const users = JSON.parse(localStorage.getItem('posUsers')) || [];
+            if (badge) badge.innerText = `${users.length} Akun`;
+
+            if (users.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">Belum ada akun terdaftar.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            users.forEach(u => {
+                const roleBadge = u.role === 'admin'
+                    ? '<span class="badge bg-dark">Admin</span>'
+                    : '<span class="badge bg-secondary">Kasir</span>';
+
+                // Akun Admin tidak boleh dihapus lewat UI ini (mencegah lockout sistem)
+                const aksiHtml = u.role === 'admin'
+                    ? '<span class="text-muted small fst-italic">Tidak dapat dihapus</span>'
+                    : `<button class="btn btn-sm btn-outline-danger fw-bold" onclick="hapusAkunKasir('${u.username}')">
+                           <i class="bi bi-person-x"></i> Hapus
+                       </button>`;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${u.name}</td>
+                        <td class="text-muted">${u.username}</td>
+                        <td>
+                            <span id="pwd-${u.username}" class="font-monospace small">••••••••</span>
+                            <button type="button" class="btn btn-sm btn-link p-0 ms-1 text-secondary" title="Tampilkan/Sembunyikan Password" onclick="togglePassword('${u.username}', this)">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                        </td>
+                        <td>${roleBadge}</td>
+                        <td class="text-center">${aksiHtml}</td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Menampilkan/menyembunyikan password akun tertentu (agar tidak terekspos langsung di layar)
+        function togglePassword(username, btnEl) {
+            const span = document.getElementById(`pwd-${username}`);
+            const icon = btnEl.querySelector('i');
+            if (!span || !icon) return;
+
+            const users = JSON.parse(localStorage.getItem('posUsers')) || [];
+            const user = users.find(u => u.username === username);
+            if (!user) return;
+
+            const sedangTersembunyi = icon.classList.contains('bi-eye');
+            if (sedangTersembunyi) {
+                span.innerText = user.password;
+                icon.classList.remove('bi-eye');
+                icon.classList.add('bi-eye-slash');
+            } else {
+                span.innerText = '••••••••';
+                icon.classList.remove('bi-eye-slash');
+                icon.classList.add('bi-eye');
+            }
+        }
+
+        // Menghapus akun kasir tertentu (dipakai saat kasir resign / tidak aktif lagi)
+        function hapusAkunKasir(username) {
+            const users = JSON.parse(localStorage.getItem('posUsers')) || [];
+            const target = users.find(u => u.username === username);
+
+            if (!target) {
+                alert('Akun tidak ditemukan.');
+                return;
+            }
+            if (target.role === 'admin') {
+                alert('Akun Admin tidak dapat dihapus.');
+                return;
+            }
+
+            const konfirmasi = confirm(`Apakah Anda yakin ingin menghapus akun kasir "${target.name}" (${username})?\n\nAkun ini tidak akan bisa login lagi setelah dihapus.`);
+            if (!konfirmasi) return;
+
+            const usersBaru = users.filter(u => u.username !== username);
+            localStorage.setItem('posUsers', JSON.stringify(usersBaru));
+
+            alert(`Akun "${target.name}" berhasil dihapus.`);
+            renderDaftarAkun();
+        }
+        // ================= END FITUR BARU =================
+
+        // ================= FITUR BARU: KELOLA PRODUK/MENU (ADMIN) =================
+
+        let editModeProdukId = null;       // null = mode tambah produk, angka = mode edit produk id tsb
+        let gambarBase64Sementara = null;  // menampung hasil upload gambar sebelum disimpan ke produk
+
+        function renderTabelProduk() {
+            const tbody = document.getElementById('tabel-produk-body');
+            const badge = document.getElementById('jumlah-produk-badge');
+            if (!tbody) return;
+
+            const produk = getMenuData();
+            if (badge) badge.innerText = `${produk.length} Produk`;
+
+            if (produk.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">Belum ada produk.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            produk.forEach(p => {
+                const isGambarAsli = p.img && (p.img.indexOf('data:image') === 0 || p.img.indexOf('http') === 0);
+                const gambarHtml = isGambarAsli
+                    ? `<img src="${p.img}" style="width:45px;height:45px;object-fit:cover;border-radius:6px;">`
+                    : `<span class="fs-3">${p.img}</span>`;
+
+                const statusBadge = p.status === 'kosong'
+                    ? '<span class="badge bg-danger">Kosong / Sold</span>'
+                    : '<span class="badge bg-success">Tersedia</span>';
+
+                const tombolStatus = p.status === 'kosong'
+                    ? `<button type="button" class="btn btn-sm btn-outline-success" title="Tandai Tersedia" onclick="toggleStatusProduk(${p.id})"><i class="bi bi-check-circle"></i></button>`
+                    : `<button type="button" class="btn btn-sm btn-outline-danger" title="Tandai Kosong/Sold" onclick="toggleStatusProduk(${p.id})"><i class="bi bi-slash-circle"></i></button>`;
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${gambarHtml}</td>
+                        <td>${p.nama}${(p.resep && p.resep.length) ? ` <span class="badge bg-info-subtle text-info-emphasis border" title="Jumlah bahan baku dalam resep"><i class="bi bi-basket3"></i> ${p.resep.length} bahan</span>` : ''}</td>
+                        <td><span class="badge bg-light text-dark border">${p.kategori}</span></td>
+                        <td>Rp ${p.harga.toLocaleString('id-ID')}</td>
+                        <td>${statusBadge}</td>
+                        <td class="text-center">
+                            <div class="d-flex gap-1 justify-content-center flex-wrap">
+                                <button type="button" class="btn btn-sm btn-outline-primary" title="Edit Produk" onclick="editProduk(${p.id})"><i class="bi bi-pencil"></i></button>
+                                ${tombolStatus}
+                                <button type="button" class="btn btn-sm btn-outline-secondary" title="Hapus Produk" onclick="hapusProduk(${p.id})"><i class="bi bi-trash"></i></button>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Membaca file gambar yang diupload admin dan menampilkannya sebagai preview (base64)
+        function previewGambarProduk(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                gambarBase64Sementara = e.target.result;
+                const previewEl = document.getElementById('preview-gambar-produk');
+                previewEl.src = gambarBase64Sementara;
+                previewEl.style.display = 'inline-block';
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Menyimpan produk baru ATAU perubahan produk (tergantung editModeProdukId)
+        function simpanProduk(e) {
+            e.preventDefault();
+
+            const nama = document.getElementById('produk-nama').value.trim();
+            const kategori = document.getElementById('produk-kategori').value;
+            const harga = parseInt(document.getElementById('produk-harga').value) || 0;
+            const status = document.getElementById('produk-status').value;
+            const emojiManual = document.getElementById('produk-emoji').value.trim();
+
+            if (!nama || harga <= 0) {
+                alert('Mohon lengkapi nama dan harga produk dengan benar!');
+                return;
+            }
+
+            let produk = getMenuData();
+
+            if (editModeProdukId !== null) {
+                // ---- MODE EDIT ----
+                produk = produk.map(p => {
+                    if (p.id === editModeProdukId) {
+                        return {
+                            ...p,
+                            nama, kategori, harga, status,
+                            resep: resepSementara.map(r => ({ ...r })),
+                            img: gambarBase64Sementara || emojiManual || p.img
+                        };
+                    }
+                    return p;
+                });
+                alert('Produk berhasil diperbarui!');
+            } else {
+                // ---- MODE TAMBAH ----
+                const idBaru = produk.length > 0 ? Math.max(...produk.map(p => p.id)) + 1 : 1;
+                const gambarFinal = gambarBase64Sementara || emojiManual || '🍽️';
+                produk.push({ id: idBaru, nama, kategori, harga, img: gambarFinal, status, resep: resepSementara.map(r => ({ ...r })) });
+                alert('Produk baru berhasil ditambahkan!');
+            }
+
+            saveMenuData(produk);
+            resetFormProduk();
+            renderTabelProduk();
+            renderMenu(); // refresh tampilan menu di halaman kasir
+        }
+
+        // Mengisi form dengan data produk yang dipilih untuk diedit
+        function editProduk(id) {
+            const produk = getMenuData();
+            const p = produk.find(x => x.id === id);
+            if (!p) return;
+
+            editModeProdukId = id;
+            gambarBase64Sementara = null;
+            resepSementara = (p.resep || []).map(r => ({ ...r }));
+            renderResepList();
+
+            document.getElementById('produk-nama').value = p.nama;
+            document.getElementById('produk-kategori').value = p.kategori;
+            document.getElementById('produk-harga').value = p.harga;
+            document.getElementById('produk-status').value = p.status || 'tersedia';
+            document.getElementById('produk-emoji').value = '';
+            document.getElementById('produk-gambar-file').value = '';
+
+            const previewEl = document.getElementById('preview-gambar-produk');
+            const isGambarAsli = p.img && (p.img.indexOf('data:image') === 0 || p.img.indexOf('http') === 0);
+            if (isGambarAsli) {
+                previewEl.src = p.img;
+                previewEl.style.display = 'inline-block';
+            } else {
+                previewEl.style.display = 'none';
+            }
+
+            document.getElementById('form-produk-judul').innerText = `✏️ Edit Produk: ${p.nama}`;
+            document.getElementById('btn-simpan-produk').innerText = 'Simpan Perubahan';
+            document.getElementById('btn-batal-edit').style.display = 'inline-block';
+
+            document.getElementById('form-produk-judul').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Mengembalikan form Kelola Produk ke mode "Tambah Produk Baru"
+        function resetFormProduk() {
+            editModeProdukId = null;
+            gambarBase64Sementara = null;
+            resepSementara = [];
+            renderResepList();
+
+            const form = document.getElementById('form-tambah-produk');
+            if (form) form.reset();
+
+            const previewEl = document.getElementById('preview-gambar-produk');
+            if (previewEl) previewEl.style.display = 'none';
+
+            document.getElementById('form-produk-judul').innerText = '➕ Tambah Produk Baru';
+            document.getElementById('btn-simpan-produk').innerText = 'Simpan Produk';
+            document.getElementById('btn-batal-edit').style.display = 'none';
+        }
+
+        // Toggle status stok produk antara "tersedia" dan "kosong" (sold out)
+        function toggleStatusProduk(id) {
+            let produk = getMenuData();
+            produk = produk.map(p => {
+                if (p.id === id) {
+                    p.status = (p.status === 'kosong') ? 'tersedia' : 'kosong';
+                }
+                return p;
+            });
+            saveMenuData(produk);
+            renderTabelProduk();
+            renderMenu();
+        }
+
+        // Menghapus produk secara permanen dari menu
+        function hapusProduk(id) {
+            const produk = getMenuData();
+            const p = produk.find(x => x.id === id);
+            if (!p) return;
+
+            if (!confirm(`Hapus produk "${p.nama}" secara permanen dari menu?`)) return;
+
+            const produkBaru = produk.filter(x => x.id !== id);
+            saveMenuData(produkBaru);
+            renderTabelProduk();
+            renderMenu();
+        }
+        // ================= END FITUR KELOLA PRODUK =================
+
+        // ================= FITUR BARU: INVENTORI BAHAN BAKU =================
+        let editModeBahanId = null;   // null = tambah bahan, angka = edit bahan id tsb
+        let resepSementara = [];      // resep produk yang sedang diedit: [{ bahanId, qty }]
+
+        function fmtAngka(n) {
+            return (Math.round(n * 1000) / 1000).toLocaleString('id-ID');
+        }
+
+        function statusBahan(b) {
+            if (b.stok <= 0) return '<span class="badge bg-danger">Habis</span>';
+            if (b.stok <= b.stokMin) return '<span class="badge bg-warning text-dark">Menipis</span>';
+            return '<span class="badge bg-success">Aman</span>';
+        }
+
+        function renderTabelBahan() {
+            const tbody = document.getElementById('tabel-bahan-body');
+            const badge = document.getElementById('jumlah-bahan-badge');
+            if (!tbody) return;
+
+            const bahan = getBahanBaku();
+            if (badge) badge.innerText = `${bahan.length} Bahan`;
+
+            if (bahan.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">Belum ada bahan baku. Tambahkan lewat form di atas.</td></tr>`;
+            } else {
+                tbody.innerHTML = '';
+                bahan.forEach(b => {
+                    tbody.innerHTML += `
+                        <tr class="${b.stok <= 0 ? 'table-danger' : (b.stok <= b.stokMin ? 'table-warning' : '')}">
+                            <td class="fw-semibold">${b.nama}</td>
+                            <td class="text-end">${fmtAngka(b.stok)} ${b.satuan}</td>
+                            <td class="text-end text-muted">${fmtAngka(b.stokMin)}</td>
+                            <td>${statusBahan(b)}</td>
+                            <td class="text-center">
+                                <div class="d-flex gap-1 justify-content-center flex-wrap">
+                                    <button type="button" class="btn btn-sm btn-outline-success" title="Tambah Stok (Restock)" onclick="tambahStokBahan(${b.id})"><i class="bi bi-plus-lg"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-primary" title="Edit / Koreksi Stok" onclick="editBahan(${b.id})"><i class="bi bi-pencil"></i></button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" title="Hapus Bahan" onclick="hapusBahan(${b.id})"><i class="bi bi-trash"></i></button>
+                                </div>
+                            </td>
+                        </tr>`;
+                });
+            }
+            renderResepSelect();
+            renderMenu(); // sisa porsi di halaman kasir ikut diperbarui
+        }
+
+        function renderLogStok() {
+            const tbody = document.getElementById('tabel-log-body');
+            if (!tbody) return;
+            const log = getLogStok();
+            if (log.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-3">Belum ada pergerakan stok.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = log.map(l => {
+                const plus = l.jumlah > 0;
+                const warna = l.jumlah === 0 ? '' : (plus ? 'text-success' : 'text-danger');
+                return `<tr>
+                    <td class="text-nowrap">${l.waktu}</td>
+                    <td>${l.nama}</td>
+                    <td><span class="badge bg-light text-dark border">${l.jenis}</span></td>
+                    <td class="text-end fw-bold ${warna}">${plus ? '+' : ''}${fmtAngka(l.jumlah)} ${l.satuan}</td>
+                    <td class="text-end">${fmtAngka(l.stokAkhir)} ${l.satuan}</td>
+                    <td class="text-muted">${l.ket || '-'}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        // Tambah bahan baru ATAU simpan hasil edit (nama, satuan, stok minimum, koreksi stok)
+        function simpanBahan(e) {
+            e.preventDefault();
+            const nama = document.getElementById('bahan-nama').value.trim();
+            const satuan = document.getElementById('bahan-satuan').value.trim();
+            const stok = parseFloat(document.getElementById('bahan-stok').value);
+            const stokMin = parseFloat(document.getElementById('bahan-stok-min').value) || 0;
+
+            if (!nama || !satuan || isNaN(stok) || stok < 0) {
+                alert('Mohon lengkapi nama, satuan, dan stok bahan dengan benar!');
+                return;
+            }
+
+            let bahan = getBahanBaku();
+            const duplikat = bahan.some(b => b.nama.toLowerCase() === nama.toLowerCase() && b.id !== editModeBahanId);
+            if (duplikat) {
+                alert('Bahan baku dengan nama tersebut sudah ada!');
+                return;
+            }
+
+            if (editModeBahanId !== null) {
+                const lama = bahan.find(b => b.id === editModeBahanId);
+                const selisih = stok - lama.stok;
+                lama.nama = nama; lama.satuan = satuan; lama.stok = stok; lama.stokMin = stokMin;
+                if (selisih !== 0) {
+                    catatLogStok({ bahanId: lama.id, nama, satuan, jenis: 'Koreksi', jumlah: selisih, stokAkhir: stok, ket: 'Koreksi manual oleh admin' });
+                }
+                alert('Bahan baku berhasil diperbarui!');
+            } else {
+                const idBaru = bahan.length > 0 ? Math.max(...bahan.map(b => b.id)) + 1 : 1;
+                bahan.push({ id: idBaru, nama, satuan, stok, stokMin });
+                catatLogStok({ bahanId: idBaru, nama, satuan, jenis: 'Stok Awal', jumlah: stok, stokAkhir: stok, ket: 'Input manual oleh admin' });
+                alert('Bahan baku berhasil ditambahkan!');
+            }
+
+            saveBahanBaku(bahan);
+            resetFormBahan();
+            renderTabelBahan();
+            renderLogStok();
+        }
+
+        function editBahan(id) {
+            const b = getBahanBaku().find(x => x.id === id);
+            if (!b) return;
+            editModeBahanId = id;
+            document.getElementById('bahan-nama').value = b.nama;
+            document.getElementById('bahan-satuan').value = b.satuan;
+            document.getElementById('bahan-stok').value = b.stok;
+            document.getElementById('bahan-stok-min').value = b.stokMin;
+            document.getElementById('bahan-stok-label').innerText = 'Stok Saat Ini';
+            document.getElementById('form-bahan-judul').innerText = `✏️ Edit Bahan: ${b.nama}`;
+            document.getElementById('btn-simpan-bahan').innerText = 'Simpan Perubahan';
+            document.getElementById('btn-batal-bahan').style.display = 'inline-block';
+            document.getElementById('form-bahan-judul').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function resetFormBahan() {
+            editModeBahanId = null;
+            const form = document.getElementById('form-bahan');
+            if (form) form.reset();
+            const judul = document.getElementById('form-bahan-judul');
+            if (!judul) return;
+            judul.innerText = '➕ Tambah Bahan Baku';
+            document.getElementById('bahan-stok-label').innerText = 'Stok Awal';
+            document.getElementById('btn-simpan-bahan').innerText = 'Simpan Bahan Baku';
+            document.getElementById('btn-batal-bahan').style.display = 'none';
+        }
+
+        // Restock cepat: menambah stok dari jumlah yang diinput admin
+        function tambahStokBahan(id) {
+            let bahan = getBahanBaku();
+            const b = bahan.find(x => x.id === id);
+            if (!b) return;
+
+            const input = prompt(`Tambah stok "${b.nama}" (satuan: ${b.satuan}).\nStok saat ini: ${fmtAngka(b.stok)} ${b.satuan}\n\nMasukkan jumlah yang ditambahkan:`);
+            if (input === null) return;
+            const jumlah = parseFloat(String(input).replace(',', '.'));
+            if (isNaN(jumlah) || jumlah <= 0) {
+                alert('Jumlah tidak valid!');
+                return;
+            }
+
+            b.stok = Math.round((b.stok + jumlah) * 1000) / 1000;
+            saveBahanBaku(bahan);
+            catatLogStok({ bahanId: b.id, nama: b.nama, satuan: b.satuan, jenis: 'Tambah Stok', jumlah, stokAkhir: b.stok, ket: 'Restock manual oleh admin' });
+            renderTabelBahan();
+            renderLogStok();
+        }
+
+        function hapusBahan(id) {
+            const bahan = getBahanBaku();
+            const b = bahan.find(x => x.id === id);
+            if (!b) return;
+
+            const dipakai = getMenuData().filter(m => (m.resep || []).some(r => r.bahanId === id));
+            let pesan = `Hapus bahan baku "${b.nama}"?`;
+            if (dipakai.length > 0) {
+                pesan += `\n\nBahan ini dipakai di resep: ${dipakai.map(m => m.nama).join(', ')}.\nBahan akan dihapus juga dari resep produk tersebut.`;
+            }
+            if (!confirm(pesan)) return;
+
+            // Bersihkan dari resep semua produk
+            const menu = getMenuData().map(m => ({ ...m, resep: (m.resep || []).filter(r => r.bahanId !== id) }));
+            saveMenuData(menu);
+            saveBahanBaku(bahan.filter(x => x.id !== id));
+            catatLogStok({ bahanId: b.id, nama: b.nama, satuan: b.satuan, jenis: 'Hapus', jumlah: 0, stokAkhir: 0, ket: 'Bahan dihapus dari inventori' });
+
+            // Sinkronkan resep yang sedang diedit di form produk
+            resepSementara = resepSementara.filter(r => r.bahanId !== id);
+            renderResepList();
+            renderTabelProduk();
+            renderTabelBahan();
+            renderLogStok();
+        }
+
+        // Melengkapi bahan baku & resep default sesuai menu yang ada (tidak menimpa data yang sudah diisi)
+        function muatBahanDariMenu() {
+            if (!confirm('Tambahkan bahan baku & resep default sesuai menu yang ada?\n\nStok bahan yang sudah ada TIDAK akan diubah, dan resep yang sudah Anda isi TIDAK akan ditimpa.')) return;
+            const hasil = muatInventoriDefault();
+            renderTabelBahan();
+            renderLogStok();
+            renderTabelProduk();
+            alert(`Selesai!\n- Bahan baku baru ditambahkan: ${hasil.bahanBaru}\n- Menu yang resepnya terisi: ${hasil.resepBaru}`);
+        }
+
+        function hapusLogStok() {
+            if (!confirm('Bersihkan seluruh riwayat pergerakan stok? (Stok bahan tidak berubah)')) return;
+            localStorage.removeItem('logStokBahan');
+            renderLogStok();
+        }
+
+        // ----- Resep di form produk -----
+        function renderResepSelect() {
+            const sel = document.getElementById('resep-bahan-select');
+            if (!sel) return;
+            const bahan = getBahanBaku();
+            if (bahan.length === 0) {
+                sel.innerHTML = '<option value="">(Belum ada bahan baku - tambahkan di tab Inventori)</option>';
+            } else {
+                sel.innerHTML = bahan.map(b => `<option value="${b.id}" data-satuan="${b.satuan}">${b.nama} (${b.satuan})</option>`).join('');
+            }
+            sel.onchange = updateLabelSatuanResep;
+            updateLabelSatuanResep();
+        }
+
+        function updateLabelSatuanResep() {
+            const sel = document.getElementById('resep-bahan-select');
+            const label = document.getElementById('resep-satuan-label');
+            if (!sel || !label) return;
+            const opt = sel.options[sel.selectedIndex];
+            label.innerText = (opt && opt.dataset.satuan) ? opt.dataset.satuan : '-';
+        }
+
+        function tambahBahanKeResep() {
+            const sel = document.getElementById('resep-bahan-select');
+            const qtyEl = document.getElementById('resep-qty-input');
+            const bahanId = parseInt(sel.value);
+            const qty = parseFloat(qtyEl.value);
+
+            if (!bahanId) { alert('Pilih bahan baku terlebih dahulu (tambahkan di tab Inventori jika belum ada).'); return; }
+            if (isNaN(qty) || qty <= 0) { alert('Masukkan jumlah pemakaian bahan per porsi!'); return; }
+
+            const ada = resepSementara.find(r => r.bahanId === bahanId);
+            if (ada) ada.qty = qty; else resepSementara.push({ bahanId, qty });
+
+            qtyEl.value = '';
+            renderResepList();
+        }
+
+        function hapusBahanDariResep(bahanId) {
+            resepSementara = resepSementara.filter(r => r.bahanId !== bahanId);
+            renderResepList();
+        }
+
+        function renderResepList() {
+            const wrap = document.getElementById('resep-list');
+            if (!wrap) return;
+            if (resepSementara.length === 0) {
+                wrap.innerHTML = '<div class="small text-muted fst-italic">Belum ada bahan dalam resep. Produk tanpa resep tidak memengaruhi stok bahan baku.</div>';
+                return;
+            }
+            const bahan = getBahanBaku();
+            wrap.innerHTML = resepSementara.map(r => {
+                const b = bahan.find(x => x.id === r.bahanId);
+                if (!b) return '';
+                return `<span class="badge bg-white text-dark border me-1 mb-1 py-2 px-2 fw-semibold">
+                    ${b.nama}: ${fmtAngka(r.qty)} ${b.satuan}
+                    <button type="button" class="btn-close ms-1" style="font-size:.6rem;" title="Hapus dari resep" onclick="hapusBahanDariResep(${r.bahanId})"></button>
+                </span>`;
+            }).join('');
+        }
+        // ================= END FITUR INVENTORI BAHAN BAKU =================
+
+        function hapusSemuaRiwayat() {
+            if (confirm('Apakah Anda yakin ingin menghapus SELURUH riwayat transaksi restoran? Tindakan ini tidak dapat dibatalkan!')) {
+                localStorage.removeItem('kitchenOrders');
+                alert('Riwayat transaksi berhasil dikosongkan.');
+            }
+        }
+        
+    </script>
+</body>
+</html>

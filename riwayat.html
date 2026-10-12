@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riwayat, Performa & Dashboard Analitik - MikiD POS</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <!-- Chart.js CDN untuk Grafik Interaktif -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { background-color: #f8f9fa; }
+        .navbar-brand { font-weight: 900; letter-spacing: 1px; }
+        .stat-card { background: linear-gradient(135deg, #da291c, #b31b1b); color: white; border-radius: 1rem; }
+    </style>
+</head>
+<body onload="cekSesiUser()">
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-dark bg-dark shadow-sm py-3">
+        <div class="container-fluid px-4">
+            <span class="navbar-brand fs-4"><i class="bi bi-graph-up-arrow"></i> DASHBOARD ANALITIK & PERFORMA</span>
+            <div class="d-flex align-items-center gap-2">
+                <span id="user-badge" class="badge bg-danger px-3 py-2 fw-bold"></span>
+                <a href="index.html" class="btn btn-outline-light btn-sm fw-bold">← Kembali ke Kasir</a>
+                <button class="btn btn-danger btn-sm fw-bold" onclick="logout()">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container my-4">
+        
+        <!-- Kartu Statistik Utama -->
+        <div class="row mb-4">
+            <div class="col-md-6 mb-3 mb-md-0">
+                <div class="card stat-card shadow-sm border-0 p-3">
+                    <div class="card-body">
+                        <h6 class="text-white-50 small fw-bold">Total Pendapatan Penjualan</h6>
+                        <h2 class="fw-bold mb-0" id="total-pendapatan">Rp 0</h2>
+                        <small class="text-white-50 mt-1 d-block">Akumulasi dari seluruh transaksi sukses</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card bg-white shadow-sm border-0 rounded-4 p-3 h-100 justify-content-center">
+                    <div class="card-body py-1">
+                        <h6 class="text-muted small fw-bold">Total Struk Transaksi</h6>
+                        <h2 class="fw-bold text-dark mb-0" id="total-transaksi">0 Pesanan</h2>
+                        <small class="text-muted mt-1 d-block">Jumlah keseluruhan pesanan masuk</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dashboard Grafik Interaktif -->
+        <div class="row mb-4">
+            <div class="col-lg-8 mb-3 mb-lg-0">
+                <div class="card shadow-sm border-0 rounded-4 p-3 bg-white h-100">
+                    <h6 class="fw-bold text-dark mb-3"><i class="bi bi-bar-chart-fill text-danger"></i> Grafik Tren Pendapatan per Tanggal</h6>
+                    <div style="height: 280px; position: relative;">
+                        <canvas id="revenueChart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="col-lg-4">
+                <div class="card shadow-sm border-0 rounded-4 p-3 bg-white h-100">
+                    <h6 class="fw-bold text-dark mb-3"><i class="bi bi-pie-chart-fill text-danger"></i> Metode Pembayaran</h6>
+                    <div style="height: 280px; position: relative;" class="d-flex justify-content-center align-items-center">
+                        <canvas id="paymentChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabel Riwayat & Filter -->
+        <div class="card shadow-sm border-0 rounded-4 p-4 bg-white">
+            <div class="d-flex justify-content-between align-items-end mb-4 pb-3 border-bottom flex-wrap gap-3">
+                <div class="w-50">
+                    <label class="form-label small fw-bold text-muted">Filter Berdasarkan Hari (Tanggal Transaksi)</label>
+                    <input type="date" id="filter-date" class="form-control" onchange="filterRiwayat()">
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-outline-secondary fw-bold" onclick="resetFilter()">
+                        <i class="bi bi-arrow-counterclockwise"></i> Reset
+                    </button>
+                    <button class="btn btn-success fw-bold" onclick="downloadExcel()">
+                        <i class="bi bi-file-earmark-excel"></i> Download Excel (.xls)
+                    </button>
+                </div>
+            </div>
+
+            <div class="table-responsive" style="max-height: 45vh;">
+                <table class="table table-striped table-hover align-middle" id="tabel-riwayat">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID Pesanan</th>
+                            <th>Waktu & Tanggal</th>
+                            <th>Pelanggan</th>
+                            <th>Tipe</th>
+                            <th>Total Bayar</th>
+                            <th>Metode</th>
+                            <th>Status</th>
+                            <th class="text-center">Aksi Struk</th>
+                        </tr>
+                    </thead>
+                    <tbody id="riwayat-table-body">
+                        <!-- Data riwayat dimuat otomatis -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let revenueChartInstance = null;
+        let paymentChartInstance = null;
+
+        // Cek autentikasi dan inisialisasi awal
+        function cekSesiUser() {
+            const user = JSON.parse(localStorage.getItem('currentUser'));
+            if (!user) {
+                alert('Silakan login terlebih dahulu!');
+                window.location.href = 'login.html';
+                return;
+            }
+            document.getElementById('user-badge').innerText = `${user.name} (${user.role.toUpperCase()})`;
+            muatRiwayatTransaksi();
+        }
+
+        // Fungsi Logout
+        function logout() {
+            localStorage.removeItem('currentUser');
+            window.location.href = 'login.html';
+        }
+
+        // Muat seluruh data dari LocalStorage
+        function muatRiwayatTransaksi() {
+            const orders = JSON.parse(localStorage.getItem('kitchenOrders')) || [];
+            renderTabelRiwayat(orders);
+            hitungStatistik(orders);
+            renderCharts(orders);
+        }
+
+        // Hitung total uang dan jumlah pesanan
+        function hitungStatistik(data) {
+            let totalPendapatan = data.reduce((sum, item) => sum + (item.total || 0), 0);
+            document.getElementById('total-pendapatan').innerText = `Rp ${totalPendapatan.toLocaleString('id-ID')}`;
+            document.getElementById('total-transaksi').innerText = `${data.length} Pesanan`;
+        }
+
+        // Tampilkan data ke tabel HTML
+        function renderTabelRiwayat(data) {
+            const tbody = document.getElementById('riwayat-table-body');
+            if (data.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center text-muted py-5">Belum ada riwayat transaksi tersimpan.</td></tr>`;
+                return;
+            }
+
+            tbody.innerHTML = '';
+            // Data dibalik agar yang terbaru muncul di atas
+            [...data].reverse().forEach(o => {
+                let orderString = JSON.stringify(o).replace(/"/g, '&quot;');
+                tbody.innerHTML += `
+                    <tr>
+                        <td class="fw-bold text-danger">${o.id}</td>
+                        <td>${o.date} ${o.time}</td>
+                        <td>${o.customer}</td>
+                        <td><span class="badge bg-secondary">${o.type}</span></td>
+                        <td class="fw-bold">Rp ${o.total.toLocaleString('id-ID')}</td>
+                        <td>${o.paymentMethod}</td>
+                        <td><span class="badge ${o.status === 'Selesai' ? 'bg-success' : 'bg-warning text-dark'}">${o.status}</span></td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-danger fw-bold px-3" onclick="cetakUlangStruk(${orderString})">
+                                <i class="bi bi-printer"></i> Cetak Struk
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Render Grafik Analitik dengan Chart.js
+        function renderCharts(data) {
+            let revenueByDate = {};
+            let paymentMethodsCount = { 'Tunai': 0, 'QRIS': 0, 'Debit/Credit': 0, 'E-Wallet': 0 };
+
+            data.forEach(o => {
+                // Kelompokkan pendapatan berdasarkan tanggal
+                let dateKey = o.date;
+                if (!revenueByDate[dateKey]) {
+                    revenueByDate[dateKey] = 0;
+                }
+                revenueByDate[dateKey] += (o.total || 0);
+
+                // Hitung frekuensi metode pembayaran
+                let method = o.paymentMethod || 'Tunai';
+                if (paymentMethodsCount[method] !== undefined) {
+                    paymentMethodsCount[method]++;
+                } else {
+                    paymentMethodsCount['Tunai']++;
+                }
+            });
+
+            let dates = Object.keys(revenueByDate);
+            let revenues = Object.values(revenueByDate);
+
+            // 1. Bar Chart Pendapatan
+            const ctxBar = document.getElementById('revenueChart').getContext('2d');
+            if (revenueChartInstance) revenueChartInstance.destroy();
+
+            revenueChartInstance = new Chart(ctxBar, {
+                type: 'bar',
+                data: {
+                    labels: dates.length > 0 ? dates : ['Belum Ada Data'],
+                    datasets: [{
+                        label: 'Pendapatan (Rp)',
+                        data: revenues.length > 0 ? revenues : [0],
+                        backgroundColor: '#da291c',
+                        borderRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true }
+                    }
+                }
+            });
+
+            // 2. Doughnut Chart Metode Pembayaran
+            const ctxPie = document.getElementById('paymentChart').getContext('2d');
+            if (paymentChartInstance) paymentChartInstance.destroy();
+
+            paymentChartInstance = new Chart(ctxPie, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Tunai', 'QRIS', 'Debit/Credit', 'E-Wallet'],
+                    datasets: [{
+                        data: [
+                            paymentMethodsCount['Tunai'],
+                            paymentMethodsCount['QRIS'],
+                            paymentMethodsCount['Debit/Credit'],
+                            paymentMethodsCount['E-Wallet']
+                        ],
+                        backgroundColor: ['#198754', '#0d6efd', '#ffc107', '#0dcaf0']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
+                    }
+                }
+            });
+        }
+
+        // FUNGSI FILTER TANGGAL (Telah diperbaiki untuk menangani format lokal browser)
+        function filterRiwayat() {
+            const orders = JSON.parse(localStorage.getItem('kitchenOrders')) || [];
+            const dateVal = document.getElementById('filter-date').value; // Contoh: "2026-09-27"
+
+            if (!dateVal) {
+                muatRiwayatTransaksi();
+                return;
+            }
+
+            let filtered = orders.filter(o => {
+                if (!o.date) return false;
+
+                // o.date bisa berupa "27/9/2026" atau "27/09/2026" tergantung format browser perangkat
+                let dateParts = o.date.split('/'); 
+                
+                if (dateParts.length === 3) {
+                    // Gunakan padStart untuk memastikan tanggal & bulan selalu 2 digit (contoh: "9" jadi "09")
+                    let day = dateParts[0].padStart(2, '0');
+                    let month = dateParts[1].padStart(2, '0');
+                    let year = dateParts[2];
+                    
+                    // Rakit menjadi format ISO YYYY-MM-DD
+                    let orderDateISO = `${year}-${month}-${day}`; 
+                    
+                    return orderDateISO === dateVal;
+                }
+                return false;
+            });
+
+            renderTabelRiwayat(filtered);
+            hitungStatistik(filtered);
+            renderCharts(filtered);
+        }
+
+        // Reset Filter
+        function resetFilter() {
+            document.getElementById('filter-date').value = '';
+            muatRiwayatTransaksi();
+        }
+
+        // Buka struk transaksi
+        function cetakUlangStruk(orderObj) {
+            localStorage.setItem('lastTransaction', JSON.stringify(orderObj));
+            window.open('struk.html', '_blank');
+        }
+
+        // Download data tabel menjadi Excel (.xls)
+        function downloadExcel() {
+            let table = document.getElementById("tabel-riwayat");
+            let html = table.outerHTML;
+            
+            let blob = new Blob(['\ufeff' + html], {
+                type: 'application/vnd.ms-excel'
+            });
+            
+            let url = URL.createObjectURL(blob);
+            let a = document.createElement('a');
+            a.href = url;
+            a.download = `Laporan_Performa_Penjualan_${new Date().toISOString().slice(0,10)}.xls`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kitchen Display System (KDS) - MikiD Restoran</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <meta http-equiv="refresh" content="4">
+    <style>
+        body { background-color: #121212; color: #fff; font-family: sans-serif; }
+        .kds-card { background-color: #1e1e1e; border: 1px solid #333; }
+    </style>
+</head>
+<body onload="cekSesiDapur()">
+
+    <nav class="navbar navbar-dark bg-black border-bottom border-secondary shadow-sm py-3">
+        <div class="container-fluid px-4">
+            <span class="navbar-brand fw-bold fs-4 text-warning"><i class="bi bi-display"></i> KITCHEN DISPLAY SYSTEM (KDS) - TIM DAPUR MIKI-D</span>
+            <div class="d-flex align-items-center gap-3">
+                <span id="user-badge" class="badge bg-secondary text-white px-3 py-2"></span>
+                <button class="btn btn-outline-light btn-sm" onclick="muatPesananDapur()"><i class="bi bi-arrow-clockwise"></i> Refresh</button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid px-4 my-4">
+        <div class="row" id="kitchen-orders-container"></div>
+    </div>
+
+    <script>
+        function cekSesiDapur() {
+            const user = JSON.parse(localStorage.getItem('currentUser'));
+            if (!user) {
+                alert('Silakan login terlebih dahulu!');
+                window.location.href = 'login.html';
+                return;
+            }
+            document.getElementById('user-badge').innerText = `${user.name} (${user.role.toUpperCase()})`;
+            muatPesananDapur();
+        }
+
+        function muatPesananDapur() {
+            const container = document.getElementById('kitchen-orders-container');
+            const orders = JSON.parse(localStorage.getItem('kitchenOrders')) || [];
+
+            const activeOrders = orders.filter(o => o.status !== 'Selesai');
+
+            if (activeOrders.length === 0) {
+                container.innerHTML = `
+                    <div class="col-12 text-center text-muted py-5">
+                        <div class="display-1 mb-3">👨‍🍳👍</div>
+                        <h3 class="text-secondary">Semua pesanan sudah selesai disajikan! Dapur bersih.</h3>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = '';
+            activeOrders.forEach(order => {
+                let itemsHtml = '';
+                order.items.forEach(item => {
+                    itemsHtml += `
+                        <li class="list-group-item bg-transparent text-white border-secondary d-flex justify-content-between align-items-center py-2">
+                            <span class="fs-6">${item.nama}</span>
+                            <span class="badge bg-warning text-dark fs-5 fw-bold px-3">x${item.qty}</span>
+                        </li>
+                    `;
+                });
+
+                let statusBadge = '';
+                let actionButton = '';
+
+                if (order.status === 'Pending') {
+                    statusBadge = `<span class="badge bg-danger">BARU (Pending)</span>`;
+                    actionButton = `<button class="btn btn-primary w-100 fw-bold py-2 mt-3" onclick="updateStatus('${order.id}', 'Dimasak')"><i class="bi bi-fire"></i> Mulai Masak</button>`;
+                } else if (order.status === 'Dimasak') {
+                    statusBadge = `<span class="badge bg-warning text-dark">SEDANG DIMASAK 🍳</span>`;
+                    actionButton = `<button class="btn btn-success w-100 fw-bold py-2 mt-3" onclick="updateStatus('${order.id}', 'Selesai')"><i class="bi bi-check-circle"></i> Selesai / Siap Disajikan ✅</button>`;
+                }
+
+                container.innerHTML += `
+                    <div class="col-md-4 mb-4">
+                        <div class="card kds-card shadow-lg rounded-4 overflow-hidden">
+                            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center py-3">
+                                <div>
+                                    <h5 class="mb-0 fw-bold text-warning">${order.id}</h5>
+                                    <small class="text-light">${order.time} • ${order.type}</small>
+                                </div>
+                                ${statusBadge}
+                            </div>
+                            <div class="card-body">
+                                <h6 class="text-info mb-3">Pemesan: <strong class="text-white">${order.customer}</strong></h6>
+                                <ul class="list-group list-group-flush mb-2 border border-secondary rounded-3 overflow-hidden bg-black">
+                                    ${itemsHtml}
+                                </ul>
+                                ${actionButton}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        function updateStatus(orderId, newStatus) {
+            let orders = JSON.parse(localStorage.getItem('kitchenOrders')) || [];
+            orders = orders.map(o => {
+                if (o.id === orderId) {
+                    o.status = newStatus;
+                }
+                return o;
+            });
+            localStorage.setItem('kitchenOrders', JSON.stringify(orders));
+            muatPesananDapur();
+        }
+    </script>
+</body>
+</html>

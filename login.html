@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login POS - MikiD Restoran</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
+    <style>
+        body { background: linear-gradient(135deg, #da291c, #212529); height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .login-card { width: 100%; max-width: 400px; background: #fff; border-radius: 1rem; padding: 2rem; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+    </style>
+</head>
+<body>
+
+    <div class="login-card">
+        <div class="text-center mb-4">
+            <h2 class="fw-bold text-danger mb-1">M 🍔 D POS</h2>
+            <p class="text-muted small">Silakan login untuk masuk ke sistem</p>
+        </div>
+
+        <form onsubmit="handleLogin(event)">
+            <div class="mb-3">
+                <label class="form-label fw-bold small">Username</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-person"></i></span>
+                    <input type="text" id="username" class="form-control" placeholder="Cth: admin atau kasir1" required>
+                </div>
+            </div>
+            <div class="mb-4">
+                <label class="form-label fw-bold small">Password</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-light"><i class="bi bi-lock"></i></span>
+                    <input type="password" id="password" class="form-control" placeholder="Password akun" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-danger w-100 py-2 fw-bold shadow-sm">Masuk Sistem 🚀</button>
+        </form>
+        <div class="mt-3 text-center small text-muted">
+            <span>Admin Default: <strong>admin</strong> / <strong>admin123</strong></span>
+        </div>
+    </div>
+
+    <script>
+        if (!localStorage.getItem('posUsers')) {
+            const defaultUsers = [
+                { username: 'admin', password: 'admin123', role: 'admin', name: 'Super Admin' },
+                { username: 'kasir1', password: '123', role: 'kasir', name: 'Kasir Utama' }
+            ];
+            localStorage.setItem('posUsers', JSON.stringify(defaultUsers));
+        }
+
+        function handleLogin(e) {
+            e.preventDefault();
+            const u = document.getElementById('username').value.trim();
+            const p = document.getElementById('password').value.trim();
+
+            const users = JSON.parse(localStorage.getItem('posUsers')) || [];
+            const found = users.find(x => x.username === u && x.password === p);
+
+            if (found) {
+                localStorage.setItem('currentUser', JSON.stringify(found));
+                alert(`Login Berhasil! Selamat datang, ${found.name}`);
+                window.location.href = 'index.html';
+            } else {
+                alert('Username atau Password salah!');
+            }
+        }
+    </script>
+</body>
+</html>
